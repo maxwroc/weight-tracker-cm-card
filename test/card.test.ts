@@ -298,4 +298,55 @@ describe('WeightTrackerCard', () => {
 
     expect(el.shadowRoot!.textContent).toContain('90');
   });
+
+  it('clears a pending refresh debounce timer on disconnect', async () => {
+    const calls: any[] = [];
+    let subscribedCallback: ((event: unknown) => void) | undefined;
+    const hass: HomeAssistantExt = {
+      connection: {
+        sendMessagePromise: vi.fn((msg: any) => {
+          calls.push(msg);
+          if (msg.type === 'custom_metrics/list_record_types') {
+            return Promise.resolve({
+              record_types: [{ id: 'weight', fields: [{ key: 'weight', label: 'Weight', type: 'number' }] }],
+            });
+          }
+          if (msg.type === 'custom_metrics/list_records') {
+            return Promise.resolve({ records });
+          }
+          return Promise.resolve([]);
+        }),
+        subscribeEvents: vi.fn((callback: (event: unknown) => void) => {
+          subscribedCallback = callback;
+          return Promise.resolve(() => Promise.resolve());
+        }),
+      },
+    } as unknown as HomeAssistantExt;
+
+    const el = makeCard();
+    el.setConfig({
+      type: 'custom:weight-tracker-cm-card',
+      record_type: 'weight',
+      value_field: 'weight',
+      target: 86,
+      default_period: '7d',
+    });
+    el.hass = hass;
+    document.body.appendChild(el);
+    await settle(el);
+
+    const listRecordsCallsBeforeEvent = calls.filter((m) => m.type === 'custom_metrics/list_records').length;
+
+    vi.useFakeTimers();
+    // Fire the live-update event (schedules a 300ms debounced refetch), then
+    // detach before it fires - disconnectedCallback must cancel the pending
+    // timer instead of letting it fetch on a now-invisible card.
+    subscribedCallback!({});
+    el.remove();
+    await vi.advanceTimersByTimeAsync(300);
+    vi.useRealTimers();
+
+    const listRecordsCallsAfter = calls.filter((m) => m.type === 'custom_metrics/list_records').length;
+    expect(listRecordsCallsAfter).toBe(listRecordsCallsBeforeEvent);
+  });
 });
