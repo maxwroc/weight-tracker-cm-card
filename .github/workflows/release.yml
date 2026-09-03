@@ -50,3 +50,18 @@ jobs:
           asset_name: weight-tracker-cm-card.js
           tag: ${{ github.ref }}
           overwrite: true
+
+  hacs:
+    name: HACS validation
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # HACS resolves a plugin's JS file from the latest GitHub release, so
+      # validation only makes sense once the release asset above has been
+      # uploaded. Running this as a dependent job (rather than a separate
+      # workflow) guarantees the ordering.
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: plugin
