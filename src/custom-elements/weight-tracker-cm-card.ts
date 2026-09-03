@@ -47,6 +47,7 @@ export class WeightTrackerCard extends LitElement {
   private _hass?: HomeAssistantExt;
   private dataSource?: DataSource;
   private unsubscribe?: () => void;
+  private subscribing = false;
   private refreshTimer?: ReturnType<typeof setTimeout>;
 
   public static async getConfigElement() {
@@ -109,6 +110,18 @@ export class WeightTrackerCard extends LitElement {
     this.unsubscribe = undefined;
   }
 
+  public connectedCallback(): void {
+    super.connectedCallback();
+    // Re-establish the live-update subscription if the card is reattached to
+    // the DOM after disconnectedCallback tore it down above (e.g. a
+    // dashboard view switch, or a masonry/sections layout reflow) - without
+    // this, a reattached card would silently stop reacting to
+    // custom_metrics_updated events for the rest of its life. Also catch up
+    // on anything that may have changed while detached.
+    this.subscribeToUpdates();
+    void this.fetchData();
+  }
+
   private setupDataSource(): void {
     if (!this._hass || !this.config) {
       return;
@@ -121,6 +134,18 @@ export class WeightTrackerCard extends LitElement {
     }
 
     this.unsubscribe?.();
+    this.unsubscribe = undefined;
+    this.subscribeToUpdates();
+
+    void this.loadRecordFields();
+    void this.fetchData();
+  }
+
+  private subscribeToUpdates(): void {
+    if (!this.dataSource || this.unsubscribe || this.subscribing) {
+      return;
+    }
+    this.subscribing = true;
     this.dataSource
       .subscribeUpdates(() => this.scheduleRefresh())
       .then((unsub) => {
@@ -128,10 +153,10 @@ export class WeightTrackerCard extends LitElement {
       })
       .catch(() => {
         /* subscription is best-effort */
+      })
+      .finally(() => {
+        this.subscribing = false;
       });
-
-    void this.loadRecordFields();
-    void this.fetchData();
   }
 
   private scheduleRefresh(): void {
