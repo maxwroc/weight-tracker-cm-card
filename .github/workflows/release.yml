@@ -12,10 +12,10 @@ jobs:
     name: Build & attach card to release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: npm
@@ -56,7 +56,7 @@ jobs:
     needs: release
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # HACS resolves a plugin's JS file from the latest GitHub release, so
       # validation only makes sense once the release asset above has been
       # uploaded. Running this as a dependent job (rather than a separate
