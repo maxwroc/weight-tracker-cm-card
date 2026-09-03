@@ -154,8 +154,15 @@ export class WeightTrackerCard extends LitElement {
       return;
     }
     this.subscribing = true;
-    this.dataSource
-      .subscribeUpdates(() => this.scheduleRefresh())
+    const dataSource = this.dataSource;
+    // Wrapped in Promise.resolve().then() so a DataSource implementation
+    // whose subscribeUpdates() throws synchronously (the DataSource
+    // interface doesn't guarantee it's an async function) still lands in
+    // the .catch()/.finally() below, instead of throwing out of this method
+    // and leaving `subscribing` stuck true forever (permanently blocking
+    // all future re-subscription attempts).
+    Promise.resolve()
+      .then(() => dataSource.subscribeUpdates(() => this.scheduleRefresh()))
       .then((unsub) => {
         if (!this.isConnected) {
           // Disconnected while the subscription was still being

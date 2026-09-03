@@ -229,10 +229,12 @@ describe('WeightTrackerCard', () => {
     // Simulate a record added from elsewhere (another tab, an automation, the
     // Custom Metrics integration's own card) while ours stays mounted.
     state.records = [...state.records, { id: 3, timestamp: '2024-06-20T00:00:00Z', weight: 90 }];
+    vi.useFakeTimers();
     subscribedCallback!({});
-
-    // scheduleRefresh() debounces via a 300ms setTimeout.
-    await new Promise((r) => setTimeout(r, 350));
+    // scheduleRefresh() debounces via a 300ms setTimeout - advance fake
+    // timers instead of a real-time sleep (faster, and avoids CI flakiness).
+    await vi.advanceTimersByTimeAsync(300);
+    vi.useRealTimers();
     await el.updateComplete;
 
     expect(el.shadowRoot!.textContent).toContain('90');
@@ -286,8 +288,12 @@ describe('WeightTrackerCard', () => {
 
     // The re-established subscription must actually work.
     state.records = [...state.records, { id: 3, timestamp: '2024-06-20T00:00:00Z', weight: 90 }];
+    vi.useFakeTimers();
     subscribedCallback!({});
-    await new Promise((r) => setTimeout(r, 350));
+    // scheduleRefresh() debounces via a 300ms setTimeout - advance fake
+    // timers instead of a real-time sleep (faster, and avoids CI flakiness).
+    await vi.advanceTimersByTimeAsync(300);
+    vi.useRealTimers();
     await el.updateComplete;
 
     expect(el.shadowRoot!.textContent).toContain('90');
