@@ -46,6 +46,35 @@ describe('WeightTrackerCard', () => {
     expect(el.getCardSize()).toBeGreaterThan(1);
   });
 
+  it('does not issue a redundant fetch on initial mount', async () => {
+    const calls: any[] = [];
+    const hass = mockHass((msg) => {
+      calls.push(msg);
+      if (msg.type === 'custom_metrics/list_record_types') {
+        return { record_types: [{ id: 'weight', fields: [{ key: 'weight', label: 'Weight', type: 'number' }] }] };
+      }
+      if (msg.type === 'custom_metrics/list_records') return { records };
+      return [];
+    });
+    const el = makeCard();
+    el.setConfig({
+      type: 'custom:weight-tracker-cm-card',
+      record_type: 'weight',
+      value_field: 'weight',
+      target: 86,
+      default_period: '7d',
+    });
+    // Config + hass are both set before the element is ever inserted into
+    // the DOM (a common Home Assistant pattern) - connectedCallback()'s
+    // first-ever invocation must not trigger a second, wasteful fetch on
+    // top of the one setupDataSource() already made.
+    el.hass = hass;
+    document.body.appendChild(el);
+    await settle(el);
+
+    expect(calls.filter((m) => m.type === 'custom_metrics/list_records')).toHaveLength(1);
+  });
+
   it('fetches data and renders gauge, stats and chart', async () => {
     const hass = mockHass((msg) => {
       if (msg.type === 'custom_metrics/list_record_types') {

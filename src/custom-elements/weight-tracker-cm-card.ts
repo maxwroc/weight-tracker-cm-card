@@ -48,6 +48,7 @@ export class WeightTrackerCard extends LitElement {
   private dataSource?: DataSource;
   private unsubscribe?: () => void;
   private subscribing = false;
+  private hasBeenConnected = false;
   private refreshTimer?: ReturnType<typeof setTimeout>;
 
   public static async getConfigElement() {
@@ -112,8 +113,15 @@ export class WeightTrackerCard extends LitElement {
 
   public connectedCallback(): void {
     super.connectedCallback();
-    // Re-establish the live-update subscription if the card is reattached to
-    // the DOM after disconnectedCallback tore it down above (e.g. a
+    if (!this.hasBeenConnected) {
+      // Initial mount: setConfig()/the hass setter (which may run before or
+      // after this first connect, depending on how the host renders cards)
+      // already trigger setupDataSource()'s own subscribe + fetch - doing it
+      // again here would just be a redundant, wasteful round-trip.
+      this.hasBeenConnected = true;
+      return;
+    }
+    // Reattached after disconnectedCallback tore things down (e.g. a
     // dashboard view switch, or a masonry/sections layout reflow) - without
     // this, a reattached card would silently stop reacting to
     // custom_metrics_updated events for the rest of its life. Also catch up
@@ -153,8 +161,10 @@ export class WeightTrackerCard extends LitElement {
           // Disconnected while the subscription was still being
           // established - cancel it immediately instead of leaking a live
           // subscription that would keep firing (and referencing this
-          // element) while detached.
-          unsub();
+          // element) while detached. unsub() isn't guaranteed to be
+          // synchronous, so explicitly ignore its return value rather than
+          // risking an unhandled rejection.
+          void unsub();
           return;
         }
         this.unsubscribe = unsub;
