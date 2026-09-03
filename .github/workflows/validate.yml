@@ -1,0 +1,21 @@
+name: Validate
+
+# HACS resolves a plugin's JS file from the latest GitHub release, so HACS
+# validation only makes sense once a release exists. Run it after each release
+# is published (or on demand) rather than as a per-PR check, so feature-branch
+# PRs are not blocked before the first release is cut.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  hacs:
+    name: HACS validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: HACS validation
+        uses: hacs/action@main
+        with:
+          category: plugin
