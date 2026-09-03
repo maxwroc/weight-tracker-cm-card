@@ -145,6 +145,7 @@ describe('WeightTrackerCard', () => {
       open: boolean;
     };
     await dialogEl.updateComplete;
+    const listRecordsCallsBeforeSubmit = calls.filter((m) => m.type === 'custom_metrics/list_records').length;
     const submitBtn = dialogEl.shadowRoot.querySelector('button.submit') as HTMLElement;
     submitBtn.click();
     await settle(el);
@@ -152,8 +153,8 @@ describe('WeightTrackerCard', () => {
 
     expect(calls.some((m) => m.type === 'custom_metrics/add_record')).toBe(true);
     // A fresh fetch must follow the add so the newly-added record is reflected.
-    const listRecordsCallsAfterAdd = calls.filter((m) => m.type === 'custom_metrics/list_records').length;
-    expect(listRecordsCallsAfterAdd).toBeGreaterThan(1);
+    const listRecordsCallsAfterSubmit = calls.filter((m) => m.type === 'custom_metrics/list_records').length;
+    expect(listRecordsCallsAfterSubmit).toBeGreaterThan(listRecordsCallsBeforeSubmit);
     expect(dialogEl.open).toBe(false);
     expect(el.shadowRoot!.textContent).toContain('90');
   });

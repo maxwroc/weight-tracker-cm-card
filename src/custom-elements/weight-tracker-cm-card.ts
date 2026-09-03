@@ -149,6 +149,14 @@ export class WeightTrackerCard extends LitElement {
     this.dataSource
       .subscribeUpdates(() => this.scheduleRefresh())
       .then((unsub) => {
+        if (!this.isConnected) {
+          // Disconnected while the subscription was still being
+          // established - cancel it immediately instead of leaking a live
+          // subscription that would keep firing (and referencing this
+          // element) while detached.
+          unsub();
+          return;
+        }
         this.unsubscribe = unsub;
       })
       .catch(() => {
