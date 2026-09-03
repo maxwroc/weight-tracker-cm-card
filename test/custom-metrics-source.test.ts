@@ -18,10 +18,12 @@ describe('CustomMetricsDataSource', () => {
       expect(msg.type).toBe('custom_metrics/list_records');
       expect(msg.record_type).toBe('weight');
       expect(msg.limit).toBe(500);
-      return [
-        { id: 2, timestamp: '2024-06-10T00:00:00Z', weight: 93.8 },
-        { id: 1, timestamp: '2024-06-01T00:00:00Z', weight: 99 },
-      ];
+      return {
+        records: [
+          { id: 2, timestamp: '2024-06-10T00:00:00Z', weight: 93.8 },
+          { id: 1, timestamp: '2024-06-01T00:00:00Z', weight: 99 },
+        ],
+      };
     });
     const source = new CustomMetricsDataSource(hass, { recordType: 'weight', valueField: 'weight' });
 
@@ -60,17 +62,17 @@ describe('CustomMetricsDataSource', () => {
         return {
           record_types: [
             {
-              key: 'weight',
+              id: 'weight',
               name: 'Weight',
               fields: [
-                { key: 'name', type: 'text' },
-                { key: 'kg', type: 'number' },
+                { key: 'name', label: 'Name', type: 'text' },
+                { key: 'kg', label: 'Kilograms', type: 'number' },
               ],
             },
           ],
         };
       }
-      return [];
+      return { records: [] };
     });
     const source = new CustomMetricsDataSource(hass, { recordType: 'weight' });
 
@@ -102,9 +104,9 @@ describe('CustomMetricsDataSource', () => {
   it('throws a helpful error when no numeric field can be found', async () => {
     const hass = mockHass((msg) => {
       if (msg.type === 'custom_metrics/list_record_types') {
-        return { record_types: [{ key: 'weight', fields: [{ key: 'note', type: 'text' }] }] };
+        return { record_types: [{ id: 'weight', fields: [{ key: 'note', label: 'Note', type: 'text' }] }] };
       }
-      return [];
+      return { records: [] };
     });
     const source = new CustomMetricsDataSource(hass, { recordType: 'weight' });
 

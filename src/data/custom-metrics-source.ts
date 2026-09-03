@@ -16,6 +16,10 @@ interface RawRecord {
   [field: string]: unknown;
 }
 
+interface ListRecordsResponse {
+  records?: RawRecord[];
+}
+
 interface ApexSeriesResponse {
   series: { name: string; data: { x: number; y: number }[] }[];
 }
@@ -45,7 +49,7 @@ export class CustomMetricsDataSource implements DataSource {
     const field = await this.resolveValueField();
 
     if (range.bucket === 'raw') {
-      const records = await this.hass.connection.sendMessagePromise<RawRecord[]>({
+      const response = await this.hass.connection.sendMessagePromise<ListRecordsResponse>({
         type: 'custom_metrics/list_records',
         record_type: this.options.recordType,
         start: range.start.toISOString(),
@@ -54,7 +58,7 @@ export class CustomMetricsDataSource implements DataSource {
         filter: this.options.filter,
       });
 
-      return (records ?? [])
+      return (response?.records ?? [])
         .map((r) => ({ x: Date.parse(r.timestamp), y: Number(r[field]) }))
         .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y))
         .sort((a, b) => a.x - b.x);
@@ -100,7 +104,7 @@ export class CustomMetricsDataSource implements DataSource {
     });
 
     const list = Array.isArray(response) ? response : (response?.record_types ?? []);
-    this.recordTypeCache = list.find((rt) => rt.key === this.options.recordType);
+    this.recordTypeCache = list.find((rt) => rt.id === this.options.recordType);
     return this.recordTypeCache;
   }
 
