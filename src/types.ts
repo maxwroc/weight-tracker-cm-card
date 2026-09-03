@@ -70,7 +70,7 @@ export interface WeightPoint {
 /** Field definition as returned by Custom Metrics `list_record_types`. */
 export interface RecordTypeField {
   key: string;
-  name?: string;
+  label?: string;
   type: string;
   required?: boolean;
   options?: string[];
@@ -78,7 +78,7 @@ export interface RecordTypeField {
 }
 
 export interface RecordType {
-  key: string;
+  id: string;
   name?: string;
   fields: RecordTypeField[];
 }

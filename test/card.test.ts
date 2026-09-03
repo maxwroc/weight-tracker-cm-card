@@ -49,9 +49,9 @@ describe('WeightTrackerCard', () => {
   it('fetches data and renders gauge, stats and chart', async () => {
     const hass = mockHass((msg) => {
       if (msg.type === 'custom_metrics/list_record_types') {
-        return { record_types: [{ key: 'weight', fields: [{ key: 'weight', type: 'number' }] }] };
+        return { record_types: [{ id: 'weight', fields: [{ key: 'weight', label: 'Weight', type: 'number' }] }] };
       }
-      if (msg.type === 'custom_metrics/list_records') return records;
+      if (msg.type === 'custom_metrics/list_records') return { records };
       return [];
     });
     const el = makeCard();
@@ -77,9 +77,9 @@ describe('WeightTrackerCard', () => {
     const hass = mockHass((msg) => {
       calls.push(msg);
       if (msg.type === 'custom_metrics/list_record_types') {
-        return { record_types: [{ key: 'weight', fields: [{ key: 'weight', type: 'number' }] }] };
+        return { record_types: [{ id: 'weight', fields: [{ key: 'weight', label: 'Weight', type: 'number' }] }] };
       }
-      if (msg.type === 'custom_metrics/list_records') return records;
+      if (msg.type === 'custom_metrics/list_records') return { records };
       if (msg.type === 'custom_metrics/aggregate_records') {
         return { series: [{ name: 'w', data: [{ x: 1, y: 95 }] }] };
       }

@@ -125,7 +125,7 @@ export class WeightTrackerAddDialog extends LitElement {
   }
 
   private renderField(field: RecordTypeField) {
-    const label = html`${field.name ?? field.key}${field.required
+    const label = html`${field.label ?? field.key}${field.required
       ? html`<span class="required"> *</span>`
       : nothing}`;
     const value = this.values[field.key];
