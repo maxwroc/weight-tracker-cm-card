@@ -87,13 +87,16 @@ export class WeightTrackerCardEditor extends LitElement implements LovelaceCardE
       return;
     }
     this.queriedRecordType = recordType;
+    const requestedRecordType = recordType;
     const source = new CustomMetricsDataSource(this.hass, { recordType });
     source
       .getRecordType()
       .then((rt) => {
+        if (this.queriedRecordType !== requestedRecordType) return;
         this.autoValueField = rt?.fields.find((f) => f.type === 'number')?.key;
       })
       .catch(() => {
+        if (this.queriedRecordType !== requestedRecordType) return;
         this.autoValueField = undefined;
       });
   }
