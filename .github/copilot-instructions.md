@@ -30,3 +30,24 @@ work does **not** require this approval — only the git operations above do.
   `npm run type-check`, `npm test`, and `npm run build`.
 - Do not commit the built bundle (`dist/`); it is produced by CI and released as
   a GitHub release asset.
+
+## Code review comments: evaluate, don't auto-apply
+
+When addressing review feedback (from a human or an AI reviewer, especially
+Copilot's automated PR reviews), always assess the comment critically before
+changing code:
+
+- Verify the concern is actually valid for this codebase as it exists today -
+  don't assume a suggestion is correct just because it was made.
+- Weigh the likelihood the described scenario can actually occur here (e.g. is
+  there only one concrete implementation of an interface, and is it already
+  safe in practice?) against the cost/risk of the suggested change.
+- It's fine to implement a low-cost defensive fix even for a narrow or
+  currently-unreachable scenario, but say so explicitly rather than treating
+  every suggestion as an equally urgent bug.
+- It's also fine to push back on or skip a suggestion, with reasoning, if it
+  doesn't apply or isn't worth the added complexity.
+- Do not chase review comments into unbounded rounds of speculative
+  hardening; prefer fixes for concretely reachable bugs over defending
+  against hypothetical future misuse of an interface.
+
