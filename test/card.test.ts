@@ -230,11 +230,14 @@ describe('WeightTrackerCard', () => {
     // Custom Metrics integration's own card) while ours stays mounted.
     state.records = [...state.records, { id: 3, timestamp: '2024-06-20T00:00:00Z', weight: 90 }];
     vi.useFakeTimers();
-    subscribedCallback!({});
-    // scheduleRefresh() debounces via a 300ms setTimeout - advance fake
-    // timers instead of a real-time sleep (faster, and avoids CI flakiness).
-    await vi.advanceTimersByTimeAsync(300);
-    vi.useRealTimers();
+    try {
+      subscribedCallback!({});
+      // scheduleRefresh() debounces via a 300ms setTimeout - advance fake
+      // timers instead of a real-time sleep (faster, and avoids CI flakiness).
+      await vi.advanceTimersByTimeAsync(300);
+    } finally {
+      vi.useRealTimers();
+    }
     await el.updateComplete;
 
     expect(el.shadowRoot!.textContent).toContain('90');
@@ -289,11 +292,14 @@ describe('WeightTrackerCard', () => {
     // The re-established subscription must actually work.
     state.records = [...state.records, { id: 3, timestamp: '2024-06-20T00:00:00Z', weight: 90 }];
     vi.useFakeTimers();
-    subscribedCallback!({});
-    // scheduleRefresh() debounces via a 300ms setTimeout - advance fake
-    // timers instead of a real-time sleep (faster, and avoids CI flakiness).
-    await vi.advanceTimersByTimeAsync(300);
-    vi.useRealTimers();
+    try {
+      subscribedCallback!({});
+      // scheduleRefresh() debounces via a 300ms setTimeout - advance fake
+      // timers instead of a real-time sleep (faster, and avoids CI flakiness).
+      await vi.advanceTimersByTimeAsync(300);
+    } finally {
+      vi.useRealTimers();
+    }
     await el.updateComplete;
 
     expect(el.shadowRoot!.textContent).toContain('90');
@@ -338,13 +344,16 @@ describe('WeightTrackerCard', () => {
     const listRecordsCallsBeforeEvent = calls.filter((m) => m.type === 'custom_metrics/list_records').length;
 
     vi.useFakeTimers();
-    // Fire the live-update event (schedules a 300ms debounced refetch), then
-    // detach before it fires - disconnectedCallback must cancel the pending
-    // timer instead of letting it fetch on a now-invisible card.
-    subscribedCallback!({});
-    el.remove();
-    await vi.advanceTimersByTimeAsync(300);
-    vi.useRealTimers();
+    try {
+      // Fire the live-update event (schedules a 300ms debounced refetch), then
+      // detach before it fires - disconnectedCallback must cancel the pending
+      // timer instead of letting it fetch on a now-invisible card.
+      subscribedCallback!({});
+      el.remove();
+      await vi.advanceTimersByTimeAsync(300);
+    } finally {
+      vi.useRealTimers();
+    }
 
     const listRecordsCallsAfter = calls.filter((m) => m.type === 'custom_metrics/list_records').length;
     expect(listRecordsCallsAfter).toBe(listRecordsCallsBeforeEvent);

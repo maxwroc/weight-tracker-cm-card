@@ -170,10 +170,16 @@ export class WeightTrackerCard extends LitElement {
           // a newer one while this attempt was still in flight - cancel it
           // immediately instead of leaking a live subscription (or
           // stomping this.unsubscribe with one tied to a stale source).
-          // unsub() isn't guaranteed to be synchronous, so explicitly
-          // ignore its return value rather than risking an unhandled
-          // rejection.
-          void unsub();
+          // unsub() isn't guaranteed to be synchronous, and its returned
+          // promise (if any) isn't observed anywhere else, so call it
+          // through its own promise chain and swallow any rejection -
+          // otherwise a failing cancellation could surface as an unhandled
+          // rejection instead of staying best-effort.
+          void Promise.resolve()
+            .then(() => unsub())
+            .catch(() => {
+              /* cancellation is best-effort */
+            });
           return;
         }
         this.unsubscribe = unsub;
