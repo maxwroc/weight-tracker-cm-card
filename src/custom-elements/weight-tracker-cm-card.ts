@@ -47,6 +47,8 @@ export class WeightTrackerCard extends LitElement {
   private _hass?: HomeAssistantExt;
   private dataSource?: DataSource;
   private unsubscribe?: () => void;
+  private subscribingFor?: DataSource;
+  private hasBeenConnected = false;
   private refreshTimer?: ReturnType<typeof setTimeout>;
 
   public static async getConfigElement() {
@@ -105,8 +107,28 @@ export class WeightTrackerCard extends LitElement {
 
   public disconnectedCallback(): void {
     super.disconnectedCallback();
+    clearTimeout(this.refreshTimer);
     this.unsubscribe?.();
     this.unsubscribe = undefined;
+  }
+
+  public connectedCallback(): void {
+    super.connectedCallback();
+    if (!this.hasBeenConnected) {
+      // Initial mount: setConfig()/the hass setter (which may run before or
+      // after this first connect, depending on how the host renders cards)
+      // already trigger setupDataSource()'s own subscribe + fetch - doing it
+      // again here would just be a redundant, wasteful round-trip.
+      this.hasBeenConnected = true;
+      return;
+    }
+    // Reattached after disconnectedCallback tore things down (e.g. a
+    // dashboard view switch, or a masonry/sections layout reflow) - without
+    // this, a reattached card would silently stop reacting to
+    // custom_metrics_updated events for the rest of its life. Also catch up
+    // on anything that may have changed while detached.
+    this.subscribeToUpdates();
+    void this.fetchData();
   }
 
   private setupDataSource(): void {
@@ -121,17 +143,59 @@ export class WeightTrackerCard extends LitElement {
     }
 
     this.unsubscribe?.();
-    this.dataSource
-      .subscribeUpdates(() => this.scheduleRefresh())
+    this.unsubscribe = undefined;
+    this.subscribeToUpdates();
+
+    void this.loadRecordFields();
+    void this.fetchData();
+  }
+
+  private subscribeToUpdates(): void {
+    if (!this.dataSource || this.unsubscribe || this.subscribingFor === this.dataSource) {
+      return;
+    }
+    const dataSource = this.dataSource;
+    this.subscribingFor = dataSource;
+    // Wrapped in Promise.resolve().then() so a DataSource implementation
+    // whose subscribeUpdates() throws synchronously (the DataSource
+    // interface doesn't guarantee it's an async function) still lands in
+    // the .catch()/.finally() below, instead of throwing out of this method
+    // and leaving the guard stuck forever (permanently blocking all future
+    // re-subscription attempts).
+    Promise.resolve()
+      .then(() => dataSource.subscribeUpdates(() => this.scheduleRefresh()))
       .then((unsub) => {
+        if (!this.isConnected || this.dataSource !== dataSource) {
+          // Disconnected, or setConfig() has since replaced dataSource with
+          // a newer one while this attempt was still in flight - cancel it
+          // immediately instead of leaking a live subscription (or
+          // stomping this.unsubscribe with one tied to a stale source).
+          // unsub() isn't guaranteed to be synchronous, and its returned
+          // promise (if any) isn't observed anywhere else, so call it
+          // through its own promise chain and swallow any rejection -
+          // otherwise a failing cancellation could surface as an unhandled
+          // rejection instead of staying best-effort.
+          void Promise.resolve()
+            .then(() => unsub())
+            .catch(() => {
+              /* cancellation is best-effort */
+            });
+          return;
+        }
         this.unsubscribe = unsub;
       })
       .catch(() => {
         /* subscription is best-effort */
+      })
+      .finally(() => {
+        // Only clear the marker if it's still ours - an interleaved newer
+        // attempt (for a dataSource created after this one started) must
+        // not have its own in-flight marker wiped out by this older one
+        // finishing later.
+        if (this.subscribingFor === dataSource) {
+          this.subscribingFor = undefined;
+        }
       });
-
-    void this.loadRecordFields();
-    void this.fetchData();
   }
 
   private scheduleRefresh(): void {
