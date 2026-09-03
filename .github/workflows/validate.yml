@@ -2,13 +2,11 @@ name: Validate
 
 # HACS resolves a plugin's JS file from the latest GitHub release, so HACS
 # validation only makes sense once a release exists. Run it after each release
-# is published (and weekly / on demand) rather than as a per-PR check, so
-# feature-branch PRs are not blocked before the first release is cut.
+# is published (or on demand) rather than as a per-PR check, so feature-branch
+# PRs are not blocked before the first release is cut.
 on:
   release:
     types: [published]
-  schedule:
-    - cron: '0 6 * * 1'
   workflow_dispatch:
 
 jobs:
