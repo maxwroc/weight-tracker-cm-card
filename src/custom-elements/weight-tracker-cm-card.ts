@@ -276,6 +276,10 @@ export class WeightTrackerCard extends LitElement {
     const c = this.config;
     const prefill: Record<string, unknown> = {};
     for (const cond of c.filter ?? []) {
+      // Defensive: normalizeConfig() already rejects malformed filter
+      // entries, but don't let a null/blank one (e.g. a stray "-" in the
+      // YAML list) crash the whole card's render.
+      if (!cond) continue;
       for (const [k, v] of Object.entries(cond)) {
         prefill[k] = v;
       }

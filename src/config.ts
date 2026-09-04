@@ -28,6 +28,15 @@ export function normalizeConfig(config: WeightTrackerCardConfig): ResolvedConfig
     throw new ConfigError(`Invalid default_period "${period}". Use one of: ${PERIODS.join(', ')}.`);
   }
 
+  if (config.filter !== undefined) {
+    if (!Array.isArray(config.filter)) {
+      throw new ConfigError('"filter" must be a list of single-key field maps, e.g. [{name: Max}].');
+    }
+    if (config.filter.some((cond) => !cond || typeof cond !== 'object')) {
+      throw new ConfigError('Each "filter" entry must be an object like {name: Max}, not empty or blank.');
+    }
+  }
+
   return {
     ...config,
     data_source: dataSource,

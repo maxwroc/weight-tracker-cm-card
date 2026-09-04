@@ -41,6 +41,19 @@ describe('normalizeConfig', () => {
     expect(() => normalizeConfig({ ...base, default_period: '2w' as never })).toThrow(ConfigError);
   });
 
+  it('accepts a valid filter', () => {
+    const c = normalizeConfig({ ...base, filter: [{ name: 'Max' }] });
+    expect(c.filter).toEqual([{ name: 'Max' }]);
+  });
+
+  it('rejects a non-list filter', () => {
+    expect(() => normalizeConfig({ ...base, filter: { name: 'Max' } as never })).toThrow(ConfigError);
+  });
+
+  it('rejects a filter containing a blank/null entry', () => {
+    expect(() => normalizeConfig({ ...base, filter: [null] as never })).toThrow(ConfigError);
+  });
+
   it('throws on missing config', () => {
     expect(() => normalizeConfig(undefined as never)).toThrow(ConfigError);
   });
