@@ -92,9 +92,9 @@ colors:                    # all optional; omit to use theme colours
 | `data_source`     | string    | `custom_metrics`            | Backend. Only `custom_metrics` is supported today. |
 | `value_field`     | string    | first `number` field        | Numeric field key to plot (e.g. `weight`). |
 | `target`          | number    | *(none)*                    | Goal weight (gauge + target line). |
-| `start_weight`    | number    | earliest record in range    | Starting weight used by the gauge. |
+| `start_weight`    | number    | earliest known record       | Starting weight used by the gauge. |
 | `unit`            | string    | `kg`                        | Display unit. |
-| `default_period`  | string    | `1m`                        | Initial period: `7d`, `1m`, `6m`, `1y`. |
+| `default_period`  | string    | `1m`                        | Initial graph period: `7d`, `1m`, `6m`, `1y`. Only affects the graph - the gauge/stats always reflect current progress regardless of the selected period. |
 | `filter`          | list      | *(none)*                    | Custom Metrics filter conditions (see below). |
 | `show_gauge`      | boolean   | `true`                      | Show the progress gauge. |
 | `show_stats`      | boolean   | `true`                      | Show the stats block. |
@@ -134,7 +134,9 @@ Values can be any CSS colour or a `var(--...)` reference.
 Progress is `(start − current) / (start − target)`, clamped to 0–100 %. The big
 number in the middle is the **remaining** distance to your goal
 (`current − target`). The starting weight is your configured `start_weight`, or —
-if not set — the earliest record in the currently selected period.
+if not set — your earliest known record. The gauge and stats block always
+reflect your overall current progress; the `7d`/`1m`/`6m`/`1y` period selector
+only changes what the graph shows.
 
 ## Development
 
