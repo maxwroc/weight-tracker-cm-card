@@ -13,6 +13,9 @@ It is powered by the [**Custom Metrics**][custom-metrics] integration.
 > data through the Custom Metrics WebSocket API. Support for regular Home
 > Assistant entities + recorder history is planned (see [Roadmap](#roadmap)).
 
+<img width="506" height="706" alt="image" src="https://github.com/user-attachments/assets/4da65772-bd3a-4d81-868a-47fabf4cd0bf" />
+
+
 ---
 
 ## Features
