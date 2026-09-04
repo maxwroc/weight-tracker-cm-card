@@ -3,7 +3,7 @@ import { customElement, state } from 'lit/decorators.js';
 import { CARD_EDITOR_NAME, CARD_NAME, CARD_VERSION } from '../const';
 import { ConfigError, normalizeConfig } from '../config';
 import { createDataSource, type DataSource } from '../data';
-import { resolvePeriod } from '../logic/period';
+import { resolvePeriod, resolveEffectivePeriod, resolveStatsRange, DAY_MS } from '../logic/period';
 import { computeStats, type WeightStats } from '../logic/stats';
 import { PERIODS } from '../types';
 import type {
@@ -50,6 +50,8 @@ export class WeightTrackerCard extends LitElement {
   private subscribingFor?: DataSource;
   private hasBeenConnected = false;
   private refreshTimer?: ReturnType<typeof setTimeout>;
+  /** Epoch ms of the earliest known record, from the last stats fetch. */
+  private earliestRecordMs?: number;
 
   public static async getConfigElement() {
     await import('./weight-tracker-card-editor');
@@ -214,14 +216,32 @@ export class WeightTrackerCard extends LitElement {
     }
   }
 
-  private async fetchData(): Promise<void> {
+  private async fetchGraphPoints(): Promise<void> {
     if (!this.dataSource || !this.config) {
       return;
     }
     try {
-      const range = resolvePeriod(this.period);
-      const points = await this.dataSource.fetchPoints(range);
-      this.points = points;
+      const dataAgeDays =
+        this.earliestRecordMs !== undefined ? (Date.now() - this.earliestRecordMs) / DAY_MS : undefined;
+      const effectivePeriod = resolveEffectivePeriod(this.period, dataAgeDays);
+      const range = resolvePeriod(effectivePeriod);
+      this.points = await this.dataSource.fetchPoints(range);
+      this.errorMessage = undefined;
+    } catch (e) {
+      this.errorMessage = e instanceof Error ? e.message : String(e);
+    }
+  }
+
+  private async fetchStats(): Promise<void> {
+    if (!this.dataSource || !this.config) {
+      return;
+    }
+    try {
+      // Deliberately independent of `this.period` - the gauge/stats reflect
+      // overall current progress, not whatever range the graph happens to
+      // be showing.
+      const points = await this.dataSource.fetchPoints(resolveStatsRange());
+      this.earliestRecordMs = points.length ? Math.min(...points.map((p) => p.x)) : undefined;
       this.stats = computeStats({
         points,
         target: this.config.target,
@@ -233,10 +253,20 @@ export class WeightTrackerCard extends LitElement {
     }
   }
 
+  private async fetchData(): Promise<void> {
+    // Sequential (not Promise.all) so fetchGraphPoints() sees a fresh
+    // earliestRecordMs from fetchStats() when deciding whether to fall back
+    // to a smaller period tier, instead of racing against a stale value.
+    await this.fetchStats();
+    await this.fetchGraphPoints();
+  }
+
   private onPeriodClick(period: Period): void {
     if (period === this.period) return;
     this.period = period;
-    void this.fetchData();
+    // Only the graph depends on the selected period - gauge/stats are left
+    // untouched.
+    void this.fetchGraphPoints();
   }
 
   private async onSubmitRecord(e: CustomEvent<AddRecordSubmitDetail>): Promise<void> {

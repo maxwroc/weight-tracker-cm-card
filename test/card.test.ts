@@ -72,7 +72,9 @@ describe('WeightTrackerCard', () => {
     document.body.appendChild(el);
     await settle(el);
 
-    expect(calls.filter((m) => m.type === 'custom_metrics/list_records')).toHaveLength(1);
+    // One fetch for the graph (period-scoped) and one for the gauge/stats
+    // (period-independent) - each exactly once, not redundantly doubled.
+    expect(calls.filter((m) => m.type === 'custom_metrics/list_records')).toHaveLength(2);
   });
 
   it('fetches data and renders gauge, stats and chart', async () => {
@@ -132,6 +134,89 @@ describe('WeightTrackerCard', () => {
     await settle(el);
 
     expect(calls.some((m) => m.type === 'custom_metrics/aggregate_records')).toBe(true);
+  });
+
+  it('falls back to raw 7d data when selecting 1y with only 2 days of history', async () => {
+    const calls: any[] = [];
+    const now = Date.now();
+    const recentRecords = [
+      { id: 1, timestamp: new Date(now - 2 * 24 * 60 * 60 * 1000).toISOString(), weight: 100 },
+      { id: 2, timestamp: new Date(now - 1 * 24 * 60 * 60 * 1000).toISOString(), weight: 98 },
+    ];
+    const hass = mockHass((msg) => {
+      calls.push(msg);
+      if (msg.type === 'custom_metrics/list_record_types') {
+        return { record_types: [{ id: 'weight', fields: [{ key: 'weight', label: 'Weight', type: 'number' }] }] };
+      }
+      if (msg.type === 'custom_metrics/list_records') return { records: recentRecords };
+      if (msg.type === 'custom_metrics/aggregate_records') {
+        // Should never be hit once the fallback kicks in.
+        return { series: [{ name: 'w', data: [{ x: 1, y: 50 }] }] };
+      }
+      return [];
+    });
+    const el = makeCard();
+    el.setConfig({
+      type: 'custom:weight-tracker-cm-card',
+      record_type: 'weight',
+      value_field: 'weight',
+      target: 86,
+      default_period: '1y',
+    });
+    el.hass = hass;
+    document.body.appendChild(el);
+    await settle(el);
+
+    // No aggregate_records call at all - the graph fell back to raw records
+    // instead of collapsing 2 days of data into a single weekly bucket.
+    expect(calls.some((m) => m.type === 'custom_metrics/aggregate_records')).toBe(false);
+    expect(calls.some((m) => m.type === 'custom_metrics/list_records')).toBe(true);
+
+    // The 1Y button still appears selected even though 7d data was fetched.
+    const buttons = el.shadowRoot!.querySelectorAll('button.period');
+    const oneYear = Array.from(buttons).find((b) => b.textContent?.trim() === '1Y') as HTMLElement;
+    expect(oneYear.className).toContain('active');
+  });
+
+  it('does not change the gauge/stats when switching the graph period', async () => {
+    const calls: any[] = [];
+    const hass = mockHass((msg) => {
+      calls.push(msg);
+      if (msg.type === 'custom_metrics/list_record_types') {
+        return { record_types: [{ id: 'weight', fields: [{ key: 'weight', label: 'Weight', type: 'number' }] }] };
+      }
+      if (msg.type === 'custom_metrics/list_records') return { records };
+      if (msg.type === 'custom_metrics/aggregate_records') {
+        // A very different figure than the raw records', so it's obvious if
+        // switching periods leaks into the gauge/stats computation.
+        return { series: [{ name: 'w', data: [{ x: 1, y: 50 }] }] };
+      }
+      return [];
+    });
+    const el = makeCard();
+    el.setConfig({
+      type: 'custom:weight-tracker-cm-card',
+      record_type: 'weight',
+      value_field: 'weight',
+      target: 86,
+      default_period: '7d',
+    });
+    el.hass = hass;
+    document.body.appendChild(el);
+    await settle(el);
+
+    const statsText = () => el.shadowRoot!.querySelector('.stats')!.textContent;
+    expect(statsText()).toContain('94');
+
+    const buttons = el.shadowRoot!.querySelectorAll('button.period');
+    const oneYear = Array.from(buttons).find((b) => b.textContent?.trim() === '1Y') as HTMLElement;
+    oneYear.click();
+    await settle(el);
+
+    // The graph now shows the aggregated (50) series, but the gauge/stats
+    // must still reflect the original, period-independent value.
+    expect(statsText()).toContain('94');
+    expect(statsText()).not.toContain('50');
   });
 
   it('refreshes the chart/stats after adding a record via the dialog', async () => {
